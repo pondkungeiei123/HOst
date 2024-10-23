@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ค้นหาข้อมูล HN</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 90%;
+            max-width: 600px;
+            margin: 50px auto;
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            width: 70%;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        .loading {
+            display: none;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<div class="container">
+    <h1>ค้นหาข้อมูล HN</h1>
+    <input type="text" id="hnInput" placeholder="กรอกหมายเลข HN" onkeydown="handleKeyDown(event)">
+    <button onclick="searchHN()">ค้นหา</button>
+    <button onclick="copyTable()">คัดลอกข้อมูล</button>
+
+    <div class="loading" id="loading">กำลังโหลด...</div>
+
+    <table id="resultTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>HN</th>
+                <th>คำนำหน้า</th>
+                <th>ชื่อ</th>
+                <th>นามสกุล</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- ผลลัพธ์การค้นหาจะถูกแสดงที่นี่ -->
+        </tbody>
+    </table>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    
+    function handleKeyDown(event) {
+        if (event.keyCode === 13) {
+            searchHN();
+        }
+    }
+
+    function searchHN() {
+        const hnInput = document.getElementById('hnInput').value.trim();
+        const resultTable = document.getElementById('resultTable');
+        const tbody = resultTable.querySelector('tbody');
+        const loading = document.getElementById('loading');
+
+        // Clear previous results
+        tbody.innerHTML = '';
+        resultTable.style.display = 'none';
+        loading.style.display = 'none';
+
+        // Validate input
+        if (!hnInput) {
+            alert('กรุณากรอกหมายเลข HN');
+            return;
+        }
+
+        // Show loading indicator
+        loading.style.display = 'block';
+
+        // Send request to the PHP server
+        fetch(`../backend/get_patient.php?hn=${hnInput}`)
+            .then(response => response.text()) // Fetch as text first for debugging
+            .then(text => {
+                console.log(text); // Log the response text
+                return JSON.parse(text); // Then parse as JSON
+            })
+            .then(data => {
+                loading.style.display = 'none'; // Hide loading
+
+                if (data.error) {
+                    alert(data.error);
+                    resultTable.style.display = 'none';
+                } else {
+                    // Display results in the table
+                    tbody.innerHTML = `
+                        <tr>
+                            <td>${data.HN}</td>
+                            <td>${data.Prefix}</td>
+                            <td>${data.name}</td>
+                            <td>${data.lastname}</td>
+                        </tr>
+                    `;
+                    resultTable.style.display = 'table';
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none'; // Hide loading
+                console.error('Error:', error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+                resultTable.style.display = 'none';
+            });
+    }
+
+    function copyTable() {
+    const resultTable = document.getElementById('resultTable');
+    if (resultTable.style.display === 'none') {
+        alert('ไม่มีข้อมูลให้คัดลอก');
+        return;
+    }
+
+    // Create a temporary textarea to hold the table content
+    const tempTextarea = document.createElement('textarea');
+    let tableContent = '';
+
+    // Loop through table rows and skip the first row (header)
+    resultTable.querySelectorAll('tbody tr').forEach(row => {
+        const rowData = Array.from(row.cells)
+            .map(cell => cell.textContent)
+            .join('\t'); // Use tab to separate columns
+        tableContent += rowData + '\n'; // Add newline for each row
+    });
+
+    tempTextarea.value = tableContent;
+    document.body.appendChild(tempTextarea);
+
+    // Select and copy the content to clipboard
+    tempTextarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempTextarea);
+
+    // Show "คัดลอกข้อมูลเรียบร้อย" message
+    showCopyMessage();
+}
+
+function showCopyMessage() {
+    Swal.fire({
+        title: 'สำเร็จ!',
+        text: 'คัดลอกข้อมูลเรียบร้อย',
+        icon: 'success',
+        timer: 1500, // จะแสดงผล 3 วินาทีและหายไป
+        timerProgressBar: true,
+    });
+}
+
+</script>
+
+</body>
+</html>
